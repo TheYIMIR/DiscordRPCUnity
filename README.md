@@ -16,3 +16,8 @@ DiscordRPCData (This is the default name for the file and needs to be used witho
     }
 }
 ```
+
+## MenutItem
+There is a MenuItem which edit the JSON file.
+
+Go to "Window/DiscordRPC" at the navbar on top of your screen.
