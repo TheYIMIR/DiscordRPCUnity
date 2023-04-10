@@ -1,4 +1,4 @@
-## Sample Json which has to be placed in a folder called "Resources"
+## Sample JSON which has to be placed in a folder called "Resources"
 
 DiscordRPCData (This is the default name for the file and needs to be used without changes)
 ```
