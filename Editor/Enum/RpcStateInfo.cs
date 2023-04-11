@@ -13,9 +13,9 @@ namespace DiscordRPCUnity
             switch (state)
             {
                 case RpcState.EditorMode:
-                    return DiscordRPC.discordRPCData.editorMode.state;
+                    return DiscordRPC.discordRPCs[DiscordRPC.slectedRPC].EditorModeState;
                 case RpcState.PlayMode:
-                    return DiscordRPC.discordRPCData.playMode.state;
+                    return DiscordRPC.discordRPCs[DiscordRPC.slectedRPC].PlayModeState;
                 default:
                     return "Error";
             }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DiscordRPCUnity.Editor;
+using System;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -16,18 +17,38 @@ namespace DiscordRPCUnity
         private static RpcState rpcState = RpcState.EditorMode;
         private static string GameName = Application.productName;
 
-        public static DiscordRPCData discordRPCData = LoadDiscordRPCData();
+        public static int slectedRPC = 0;
+
+        public static DiscordRPCDataObject[] discordRPCs = LoadDiscordRPCDataObjects();
 
         static DiscordRPC()
         {
-            string path = Path.Combine(Directory.GetCurrentDirectory(), AssetDatabase.GetAssetPath(Resources.Load<TextAsset>("DiscordRPCData"))).Replace("Resources/DiscordRPCData.json", "Plugins/");
+            string path = Path.Combine(Directory.GetCurrentDirectory(), "Assets/Scripts/Editor/Discord/Plugins/");
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+                AssetDatabase.Refresh();
+            }
             if (!File.Exists(path + "discord-rpc.dll"))
             {
-                Log($"discord-rpc.dll does not Exist. Save it now to {path + "discord-rpc.dll"}!");
+                DiscordLogger.Log($"discord-rpc.dll does not Exist. Save it now to {path + "discord-rpc.dll"}!");
                 DllContainer dllContainer = new DllContainer(path);
-                dllContainer.SaveEmbeddedDll("DiscordRPCUnity.discord-rpc.dll", "discord-rpc.dll");
+                dllContainer.SaveEmbeddedDll("DiscordRPCUnity.Resources.discord-rpc.dll", "discord-rpc.dll");
             }
 
+            if (discordRPCs.Length > 0)
+            {
+                Initialize();
+            }
+        }
+
+        public static void Initialize()
+        {
+            if (discordRPCs.Length <= 0)
+            {
+                DiscordLogger.LogWarning("Not able to Initialize because there is no RPCData!");
+                return;
+            }
             if (!EditorPrefs.HasKey("discordRPC"))
             {
                 EditorPrefs.SetBool("discordRPC", true);
@@ -35,74 +56,55 @@ namespace DiscordRPCUnity
 
             if (EditorPrefs.GetBool("discordRPC"))
             {
-                Log("Starting Discord RPC");
+                DiscordLogger.Log("Starting Discord RPC");
                 DiscordAPI.EventHandlers eventHandlers = default(DiscordAPI.EventHandlers);
-                DiscordAPI.Initialize(discordRPCData.id, ref eventHandlers, false, string.Empty);
-                UpdateDRPC();
+                DiscordAPI.Initialize(discordRPCs[slectedRPC].ID, ref eventHandlers, false, string.Empty);
+                Update();
             }
         }
 
-        public static void UpdateDRPC()
+        public static void Reload()
         {
-            Log("Updating everything");
+            DiscordAPI.Shutdown();
+            Initialize();
+        }
+
+        public static void Update(bool reset = true)
+        {
+            if(!EditorPrefs.GetBool("discordRPC")) Initialize();
+            DiscordLogger.Log("Updating everything");
             presence.details = string.Format("Project: {0}", GameName);
             if (rpcState.StateName() != null) presence.state = rpcState.StateName();
             presence.startTimestamp = timestamp;
-            if (discordRPCData.largeImageKey != null) presence.largeImageKey = discordRPCData.largeImageKey;
-            if (discordRPCData.largeImageText != null) presence.largeImageText = discordRPCData.largeImageText;
-            if (discordRPCData.smallImageKey != null) presence.smallImageKey = discordRPCData.smallImageKey;
-            if (discordRPCData.smallImageText != null) presence.smallImageText = discordRPCData.smallImageText;
+            if (discordRPCs[slectedRPC].LargeImageKey != null) presence.largeImageKey = discordRPCs[slectedRPC].LargeImageKey;
+            if (discordRPCs[slectedRPC].LargeImageText != null) presence.largeImageText = discordRPCs[slectedRPC].LargeImageText;
+            if (discordRPCs[slectedRPC].SmallImageKey != null) presence.smallImageKey = discordRPCs[slectedRPC].SmallImageKey;
+            if (discordRPCs[slectedRPC].SmallImageText != null) presence.smallImageText = discordRPCs[slectedRPC].SmallImageText;
             DiscordAPI.UpdatePresence(presence);
-            ResetTime();
+            if (reset) ResetTime();
         }
 
-        public static void UpdateState(RpcState state)
+        public static void UpdateState(RpcState state, bool reset = true)
         {
-            Log("Updating state to '" + state.StateName() + "'");
+            DiscordLogger.Log("Updating state to '" + state.StateName() + "'");
             rpcState = state;
             if (rpcState.StateName() != null) presence.state = rpcState.StateName();
             DiscordAPI.UpdatePresence(presence);
-            ResetTime();
+            if (reset) ResetTime();
         }
 
         public static void ResetTime()
         {
-            Log("Resetting timer");
+            DiscordLogger.Log("Resetting timer");
             time = (DateTime.UtcNow - new DateTime(1970, 1, 1));
             timestamp = (long)time.TotalSeconds;
             presence.startTimestamp = timestamp;
             DiscordAPI.UpdatePresence(presence);
         }
 
-        private static void Log(string message)
+        public static DiscordRPCDataObject[] LoadDiscordRPCDataObjects()
         {
-            Debug.Log("[DiscordRPCUnity] " + message);
+            return Resources.LoadAll<DiscordRPCDataObject>("DiscordData");
         }
-
-        public static DiscordRPCData LoadDiscordRPCData()
-        {
-            TextAsset json = Resources.Load<TextAsset>("DiscordRPCData"); // Load the JSON file from Resources folder
-            if (json != null)
-            {
-                DiscordRPCData data = JsonUtility.FromJson<DiscordRPCData>(json.ToString()); // Deserialize the JSON into DiscordRPCData object
-                return data;
-            }
-            else
-            {
-                Debug.LogError("Failed to load DiscordRPCData.json from Resources folder!");
-                return null;
-            }
-        }
-
-        public static void SaveDiscordRPCData()
-        {
-            string json = JsonUtility.ToJson(discordRPCData, true);
-            string path = Path.Combine(Directory.GetCurrentDirectory(), AssetDatabase.GetAssetPath(Resources.Load<TextAsset>("DiscordRPCData")));
-            File.WriteAllText(path, json);
-            AssetDatabase.Refresh();
-            discordRPCData = LoadDiscordRPCData();
-            Log("Discord RPC data saved to: " + path);
-        }
-
     }
 }
